@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Test Quiz API</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f0f2f5;
+      margin: 0;
+      padding: 20px;
+    }
+    .container {
+      max-width: 600px;
+      margin: auto;
+      background: #fff;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    }
+    h1, h2 {
+      text-align: center;
+    }
+    label {
+      display: block;
+      margin-top: 10px;
+      font-weight: bold;
+    }
+    input[type="text"] {
+      width: 100%;
+      padding: 8px;
+      margin-top: 5px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    button {
+      margin-top: 15px;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 4px;
+      background-color: #007BFF;
+      color: white;
+      font-size: 16px;
+      cursor: pointer;
+      display: block;
+      width: 100%;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+    .question-section, .answer-section {
+      margin-top: 20px;
+      padding: 15px;
+      background: #f9f9f9;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
+    .options {
+      list-style: none;
+      padding: 0;
+    }
+    .options li {
+      padding: 5px 0;
+    }
+    .result {
+      margin-top: 15px;
+      font-weight: bold;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Test Quiz API</h1>
+
+    <!-- Section pour générer une question -->
+    <div class="api-section">
+      <h2>Générer une question</h2>
+      <label for="domain">Domaine :</label>
+      <input type="text" id="domain" value="python">
+
+      <label for="level">Niveau :</label>
+      <input type="text" id="level" value="1">
+
+      <button onclick="generateQuestion()">Générer</button>
+
+      <div id="generatedQuestion" class="question-section"></div>
+    </div>
+
+    <!-- Section pour soumettre une réponse -->
+    <div class="answer-section" style="display:none;">
+      <h2>Soumettre une réponse</h2>
+      <div id="currentQuestion"></div>
+
+      <label for="answer">Votre Réponse :</label>
+      <input type="text" id="answer" placeholder="Tapez ici votre réponse">
+
+      <button onclick="submitAnswer()">Valider</button>
+      <div id="feedback" class="result"></div>
+    </div>
+  </div>
+
+  <script>
+    let currentQuizId = null;
+
+    // Fonction pour générer une question via l'API
+    async function generateQuestion() {
+      const domain = document.getElementById("domain").value;
+      const level = document.getElementById("level").value;
+
+      try {
+        const response = await fetch("http://127.0.0.1:8000/generate_question", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ domain: domain, level: level })
+        });
+
+        if (!response.ok) {
+          throw new Error("Erreur lors de la génération de la question.");
+        }
+
+        const data = await response.json();
+        currentQuizId = data.quiz_id;
+
+        // Affichage de la question et des options
+        const questionHtml = `
+          <p><strong>Question :</strong> ${data.question}</p>
+          <ul class="options">
+            ${data.options.map(option => `<li>${option}</li>`).join('')}
+          </ul>`;
+
+        document.getElementById("generatedQuestion").innerHTML = questionHtml;
+        document.getElementById("currentQuestion").innerHTML = questionHtml;
+
+        // Afficher la section de réponse
+        document.querySelector(".answer-section").style.display = "block";
+        // Effacer le feedback
+        document.getElementById("feedback").innerHTML = "";
+      } catch (error) {
+        document.getElementById("generatedQuestion").innerHTML = error.message;
+      }
+    }
+
+    // Fonction pour soumettre une réponse via l'API
+    async function submitAnswer() {
+      const answer = document.getElementById("answer").value;
+
+      if (!currentQuizId) {
+        alert("Veuillez générer une question avant de répondre.");
+        return;
+      }
+
+      try {
+        const response = await fetch("http://127.0.0.1:8000/submit_answer", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ quiz_id: currentQuizId, answer: answer })
+        });
+
+        if (!response.ok) {
+          throw new Error("Erreur lors de la soumission de la réponse.");
+        }
+
+        const data = await response.json();
+        document.getElementById("feedback").innerHTML = data.message;
+        // Réinitialiser la question après soumission
+        currentQuizId = null;
+        document.getElementById("answer").value = "";
+      } catch (error) {
+        document.getElementById("feedback").innerHTML = error.message;
+      }
+    }
+  </script>
+</body>
+</html>
